@@ -1,0 +1,206 @@
+---
+title: "Klasifikasi Tipe Benih"
+author: "Nasiya Alifah Utami (221810496)"
+date: "10/27/2020"
+output:
+  word_document: default
+  rmdformats::readthedown:
+    rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: true
+    highlight: tango
+    card: false
+    number_section: true
+---
+# Soal
+  Sesuai dengan petunjuk pada Soal UTS Data Mining dan Knowledge Management Tahun 2020, Berikut ini adalah metode yang telah ditentukan untuk anda:
+Regresi Logistik
+
+  Berikut adalah Link Dataset yang digunakan:
+  https://archive.ics.uci.edu/ml/datasets/seeds
+  Details Dataset
+  Records: 210
+  Atribut: 7
+  Missing: No
+  Detail Tugas:
+  Klasifikasi tipe benih
+  
+# Import Library
+  Library package yang digunakan untuk melakukan analisis data mining adalah sebagai berikut:
+```{r}
+  library(nnet)          #neural network dan multiple regresi logistik
+  library(rpart)         #decision tree id3
+  library(RWeka)         #decision tree c45
+  library(e1071)         #naive bayes
+  library(randomForest)  #random forest
+  library(mltest)        #nilai kebaikan model
+  library(maxTPR)        #nilai sensitivitas model
+```
+
+# Import Dataset
+  Dataset perlu di import ke environment di RStudio untuk dapat diolah dan digali informasinya. Dataset yang di import memiliki tipe file text (.txt). Karena dataset yang telah diunduh tidak memiliki nama pada header, maka perlu diberi nama terlebih dahulu sesuai dengan deskripsi atribut yang tercantum. berikut adalah proses import data di RStudio.
+```{r}
+dataset        <- read.delim("C:/Users/ACER/Downloads/seeds_dataset (2).txt",
+                           header=FALSE,
+                           sep="\t",
+                           na.strings = '?')
+names(dataset) <- c("Area","Perimeter", "compactness", "length", 
+                      "width", "as_coef", "length_KG", "tipe_benih")
+lapply(dataset, as.numeric)
+dataset$tipe_benih <- as.factor(dataset$tipe_benih)
+as.data.frame(dataset)
+str(dataset)
+head(dataset)
+```
+
+# Split Training set and Testing Set
+  Data training dan data testing dibagi kedalam 80% data untuk data training dan 20% data untuk data testing. Pembagian testing set dan training set untuk validasi model dilakukan dengan pendekatan yang dinamakan validation set approach. Berikut adalah pemrosesannya yang dilakukan menggunakan tools Rstudio. 
+```{R}
+  set.seed(123)
+  training_set <- sample(1:nrow(dataset), floor(.80 * nrow(dataset)))
+  testing_set <- (1:nrow(dataset))[1:nrow(dataset) %in% training_set == FALSE]
+  train <- dataset[training_set,]
+  tes <- dataset[testing_set,]
+  head(train)
+  head(tes)
+```
+
+# Training Data (modeling)
+  Training data dilakukan untuk membangun model yang tepat untuk melakukan prediksi target class data baru. Model yang digunakan adalah model regresi logistik multinomial karena target class memiliki lebih dari 2 faktor, yakni tipe benih 1, tipe benih 2, dan tipe benih 3. berikut adalah modelnya:
+```{R}
+mrl_model <- nnet::multinom(tipe_benih ~., data = train)
+summary(mrl_model)
+```
+  Untuk mencari model terbaik, dibangun model dengan metode lainnya, yakni menggunakan algoritma SVM (support vector machine), Naive Bayes, Random Forest, Neural Network, dan Decision Tree ID3.
+  
+## SVM
+Berikut adalah model svm yang dibentuk:
+```{r}
+svm_model <- svm  (tipe_benih ~ ., data = train, 
+                     kernel="radial", cost=5, probability=TRUE)
+summary(svm_model)
+```
+
+## Naive Bayes
+Berikut adalah model naive bayes yang dibentuk:
+```{r}
+nb_model  <- naiveBayes(tipe_benih ~ ., data = train)
+summary(nb_model)
+```
+
+## Random Forest
+Berikut adalah model svm yang dibentuk:
+```{r}
+rf_model  <- randomForest(tipe_benih ~ ., data = train)
+rf_model
+```
+
+## Neural Network
+Berikut adalah model svm yang dibentuk:
+```{r}
+nn_model  <- nnet (tipe_benih ~ ., data = train, size=5, decay=5e-4, 
+                     maxit=200)
+nn_model
+```
+
+## Decision Tree ID3
+Berikut adalah model ID3 yang dibentuk:
+```{r}
+id3_model <- rpart(tipe_benih ~ ., data = train, 
+                     control = rpart.control(minsplit = 2))
+id3_model
+```
+
+# Testing Data (Prediksi)
+  setelah dibangun model, data target class dari testing set di prediksi. prediksi dilakukan kepada testing set menggunakan semua model yang telah dibangun.
+```{R}
+  mrl_pred  <- predict(mrl_model, tes[,1:7], type = "class")
+  svm_pred  <- predict(svm_model, tes[,1:7])
+  nb_pred   <- predict(nb_model , tes[,1:7])
+  rf_pred   <- predict(rf_model , tes[,1:7])
+  nn_pred   <- predict(nn_model , tes[,1:7], type = "class")
+  id3_pred  <- predict(id3_model, tes[,1:7], type = "class")
+```
+
+#Confussion Matrix
+  sebelum membuat confussion matrix, diperlukan perubahan variabel menjadi bentuk faktor sebagai berikut:
+```{r}
+  mrl_pred  <- as.factor(mrl_pred)
+  svm_pred  <- as.factor(svm_pred)
+  nb_pred   <- as.factor(nb_pred)
+  rf_pred   <- as.factor(rf_pred)
+  nn_pred   <- as.factor(nn_pred)
+  id3_pred  <- as.factor(id3_pred)
+  true_value<- as.factor(tes$tipe_benih)
+```
+
+  setelah itu baru dapat dibentuk confussion matrix. Berikut adalah confussion matrix dari setiap model.
+```{r}
+Regresi_Logistik <- table(mrl_pred, true_value)
+Regresi_Logistik
+SVM <- table(svm_pred, true_value)
+SVM
+Naive_Bayes <- table(nb_pred, true_value)
+Naive_Bayes
+Random_Forest <- table(rf_pred, true_value) 
+Random_Forest
+Neural_Network <- table(nn_pred, true_value)
+Neural_Network
+Decision_Tree <- table(id3_pred, true_value)
+Decision_Tree
+```
+
+# Validasi Model
+  Validasi model dilakukan dengan mengitung ukuran kebaikan model. ukuran kebaikan model yang akan digunakan kali ini adalah akurasi, sensitivity, specifisity presisi, recall, dan F1 score.
+```{R}
+  CM_svm    <- ml_test(svm_pred, true_value, output.as.table = FALSE)
+  CM_id3    <- ml_test(id3_pred, true_value, output.as.table = FALSE)
+  CM_mrl    <- ml_test(mrl_pred, true_value, output.as.table = FALSE)
+  CM_nn     <- ml_test(nn_pred , true_value, output.as.table = FALSE)
+  CM_rf     <- ml_test(rf_pred , true_value, output.as.table = FALSE)
+  CM_nb     <- ml_test(nb_pred , true_value, output.as.table = FALSE)
+  
+  Model     <- c("SVM (Support Vector Machine)","","", 
+                 "Decision Tree(ID3)"          ,"","",
+                 "Multinomial RegLog"          ,"","",
+                 "Neural Network"              ,"","",
+                 "Random Forest"               ,"","",
+                 "Naive Bayes"                 ,"","")
+  Akurasi   <- c(CM_svm$accuracy,"","", 
+                 CM_id3$accuracy,"","", 
+                 CM_mrl$accuracy,"","",
+                 CM_nn$accuracy ,"","",
+                 CM_rf$accuracy ,"","",
+                 CM_nb$accuracy ,"","")
+  Class     <- c("tipe 1","tipe 2","tipe 3",
+                 "tipe 1","tipe 2","tipe 3",
+                 "tipe 1","tipe 2","tipe 3",
+                 "tipe 1","tipe 2","tipe 3",
+                 "tipe 1","tipe 2","tipe 3",
+                 "tipe 1","tipe 2","tipe 3")
+  Presisi   <- c(CM_svm$precision, CM_id3$precision, 
+                 CM_mrl$precision, CM_nn$precision,
+                 CM_rf$precision , CM_nb$precision)
+  Recall    <- c(CM_svm$recall   , CM_id3$recall, 
+                 CM_mrl$recall   , CM_nn$recall,
+                 CM_rf$recall    , CM_nb$recall)
+  F1_score  <- c(CM_svm$F1       , CM_id3$F1, 
+                 CM_mrl$F1       , CM_nn$F1,
+                 CM_rf$F1        , CM_nb$F1)
+  Specificity <- c(CM_svm$specificity,
+                   CM_id3$specificity, 
+                   CM_mrl$specificity,
+                   CM_nn$specificity,
+                   CM_rf$specificity,
+                   CM_nb$specificity)
+  result    <- data.frame(Model, Akurasi, Class, Specificity,
+                          Presisi, Recall, F1_score)
+  View(result)
+```
+  Berikut adalah interpretasi dari ukuran kebaikan model di atas.
+
+# Best Model
+  setelah menghitung ukuran kebaikan model, bandingkan ukuran kebaikan model tersebut. model terbaik adalah model yang memiliki akurasi, presisi, recall, dan F1 Score yang tinggi.
+  Pada Penelitian kali ini seharusnya peneliti menggunakan metode regresi logistik multinomial, namun dikarenakan nilai kebaikan model yang lebih bagus jika menggunakan random forest, maka peneliti menyarankan untuk menggunakan model random forest untuk memprediksi tipe benih dengan data baru.
